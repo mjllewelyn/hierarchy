@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hierarchical Data</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #d0eaff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 60%;
+      background-color: white;
+      padding: 20px 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+
+    .file-upload, .controls {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .item {
+      margin-left: 20px;
+      border-left: 2px solid #ccc;
+      padding-left: 10px;
+      margin-bottom: 10px;
+    }
+
+    .header {
+      font-weight: bold;
+      color: #333;
+      margin: 5px 0;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .description {
+      color: #666;
+      margin-left: 10px;
+    }
+
+    .children {
+      margin-top: 5px;
+      margin-left: 15px;
+      display: none;
+    }
+
+    input[type="text"] {
+      padding: 4px 6px;
+      width: 140px;
+    }
+
+    .btn {
+      padding: 5px 10px;
+      margin: 5px 5px 10px 0;
+      font-size: 0.9em;
+      cursor: pointer;
+    }
+
+    .btn-small {
+      font-size: 0.8em;
+    }
+
+    #error {
+      color: red;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .toggle-icon {
+      font-size: 0.8em;
+      user-select: none;
+    }
+  </style>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Hierarchical Data</h1>
+
+    <div class="file-upload">
+      <input type="file" id="jsonFile" accept=".json" />
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="toggleEdit">Enter Edit Mode</button>
+      <button class="btn" id="downloadJson">Download</button>
+    </div>
+
+    <div id="error"></div>
+    <div id="output"></div>
+  </div>
+
+  <script>
+    let jsonData = [];
+    let isEditMode = false;
+
+    function createItemEditor(item, parentArray = null) {
+      const $itemDiv = $('<div class="item"></div>');
+      const $childrenDiv = $('<div class="children"></div>');
+      const hasChildren = Array.isArray(item.items) && item.items.length > 0;
+
+      const $toggleIcon = $('<span class="toggle-icon">▶</span>');
+      const $header = $('<div class="header"></div>');
+
+      $header.prepend($toggleIcon);
+
+      if (isEditMode) {
+        const $nameInput = $('<input type="text" placeholder="Name" />').val(item.name || '');
+        const $descInput = $('<input type="text" placeholder="Description" />').val(item.description || '');
+        const $addBtn = $('<button class="btn btn-small">Add Subitem</button>');
+        const $removeBtn = $('<button class="btn btn-small">Remove</button>');
+
+        $nameInput.on('input', () => { item.name = $nameInput.val(); });
+        $descInput.on('input', () => { item.description = $descInput.val(); });
+
+        $addBtn.on('click', () => {
+          const newChild = { name: '', description: '', items: [] };
+          item.items = item.items || [];
+          item.items.push(newChild);
+          $childrenDiv.append(createItemEditor(newChild, item.items));
+          $childrenDiv.show();
+          $toggleIcon.text('▼');
+        });
+
+        $removeBtn.on('click', () => {
+          if (parentArray) {
+            const index = parentArray.indexOf(item);
+            if (index > -1) {
+              parentArray.splice(index, 1);
+              $itemDiv.remove();
+            }
+          }
+        });
+
+        $header.append($nameInput, $descInput, $addBtn, $removeBtn);
+      } else {
+        const name = $('<span></span>').text(item.name || '(no name)');
+        const desc = $('<span class="description"></span>').text(item.description || '');
+        $header.append(name, desc);
+      }
+
+      $header.on('click', function (e) {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+          $childrenDiv.slideToggle(150, () => {
+            const visible = $childrenDiv.is(':visible');
+            $toggleIcon.text(visible ? '▼' : '▶');
+          });
+        }
+      });
+
+      if (hasChildren) {
+        item.items.forEach(child => {
+          $childrenDiv.append(createItemEditor(child, item.items));
+        });
+      }
+
+      $itemDiv.append($header).append($childrenDiv);
+
+      if (hasChildren) {
+        $toggleIcon.text('▶'); // collapsed by default
+        $childrenDiv.hide();
+      } else {
+        $toggleIcon.text(''); // no icon if no children
+      }
+
+      return $itemDiv;
+    }
+
+    function displayData(data) {
+      $('#output').empty();
+      if (data.length == 0)
+        data = [{"name": "", "description": ""}]
+      data.forEach(item => {
+        $('#output').append(createItemEditor(item));
+      });
+    }
+
+    $('#jsonFile').on('change', function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        try {
+          const json = JSON.parse(event.target.result);
+          if (!Array.isArray(json)) throw new Error('Top-level JSON must be an array');
+          $('#error').text('');
+          jsonData = json;
+          displayData(jsonData);
+        } catch (err) {
+          $('#output').empty();
+          $('#error').text('Invalid JSON: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    $('#toggleEdit').on('click', function () {
+      isEditMode = !isEditMode;
+      $(this).text(isEditMode ? 'Exit Edit Mode' : 'Enter Edit Mode');
+      displayData(jsonData);
+    });
+
+    $('#downloadJson').on('click', async function () {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: 'data.json',
+          types: [{
+            description: 'JSON Files',
+            accept: { 'application/json': ['.json'] },
+          }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(JSON.stringify(jsonData, null, 2));
+        await writable.close();
+      } catch (err) {
+        console.error('Save cancelled or failed:', err);
+      }
+    });
+  </script>
+</body>
+</html>
