@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Page Navigation Hierarchy</title>
+  <script src="bibleData.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body {
+      margin: 0;
+      background-color: #000;
+      color: white;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background-color: navy;
+      padding: 30px;
+      border-radius: 12px;
+      width: 60%;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .entry {
+      background-color: rgba(255, 255, 255, 0.1);
+      margin: 10px 0;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: background 0.3s;
+    }
+
+    .entry:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .entry i {
+      margin-right: 10px;
+    }
+
+    .back-button {
+      margin-bottom: 10px;
+      background-color: #444;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      align-self: flex-start;
+    }
+
+    .back-button:hover {
+      background-color: #666;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1 id="title" style="text-align: center;">Bible</h1>
+  <button class="back-button" style="display: none;">← Back</button>
+  <div id="entry-list"></div>
+</div>
+
+<script>
+  const entryList = document.getElementById('entry-list');
+  const backButton = document.querySelector('.back-button');
+  const pathStack = [];
+
+  function renderLevel(node) {
+    entryList.innerHTML = '';
+
+    if (node.items && node.items.length > 0) {
+      node.items.forEach(item => {
+        const entry = document.createElement('div');
+        entry.className = 'entry';
+        entry.innerHTML = `<i class="fas ${item.icon}"></i>${item.name} ${item.items.length > 0 ? " &nbsp;<i class='fas fa-arrow-right'></i>" : "" }`;
+        entry.onclick = () => {
+          if (item.items.length > 0) {
+            pathStack.push(node);
+            document.getElementById("title").innerHTML = item.name
+            renderLevel(item);
+          }
+        };
+        entryList.appendChild(entry);
+      });
+    }
+
+    backButton.style.display = pathStack.length ? 'inline-block' : 'none';
+  }
+
+  backButton.onclick = () => {
+    const previous = pathStack.pop();
+    if (previous){
+      document.getElementById("title").innerHTML = previous.name ?? "Bible"
+      renderLevel(previous);
+    }
+  };
+
+  console.log(data)
+  renderLevel(data);
+</script>
+
+</body>
+</html>
